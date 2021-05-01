@@ -5,7 +5,7 @@ import time
 import pygame
 
 TARGET_NUM = 16
-POPULATION = 16
+POPULATION = 50
 
 
 # define target points
@@ -29,7 +29,7 @@ class Base:
     def __init__(self):
         self.x_vertex = 255
         self.y_vertex = 255
-        self.color = (0, 0, 255)
+        self.color = (0, 0, 0)
 
 
 class Drone:
@@ -40,25 +40,16 @@ class Drone:
         self.color = (255, 0, 0)
         self.length_route = 0
         self.F = 0
-
-        self.chromosome = [
-            random.randint(0, 15), random.randint(0, 15), random.randint(0, 15),
-            random.randint(0, 15),
-            random.randint(0, 15), random.randint(0, 15), random.randint(0, 15),
-            random.randint(0, 15),
-            random.randint(0, 15), random.randint(0, 15), random.randint(0, 15),
-            random.randint(0, 15),
-            random.randint(0, 15), random.randint(0, 15), random.randint(0, 15),
-            random.randint(0, 15),
-        ]
+        self.chromosome = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        random.shuffle(self.chromosome)
 
     def move(self, x, y):
         if (self.x_vertex - x) + (self.y_vertex - y) == 0:
             self.length_route += 100000
         else:
+            self.length_route += math.sqrt((self.x_vertex - x) ** 2 + (self.y_vertex - y) ** 2)
             self.x_vertex = x
             self.y_vertex = y
-            self.length_route += math.sqrt(x ** 2 + y ** 2)
 
 
 # set map
@@ -84,6 +75,7 @@ screen = pygame.display.set_mode([500, 500])
 running = True
 step = 0
 gen = 0
+step_null = False
 while running:
 
     # Did the user click the window close button?
@@ -98,28 +90,29 @@ while running:
     for i in range(TARGET_NUM):
         pygame.draw.circle(screen, target_list[i].color, (target_list[i].x_vertex, target_list[i].y_vertex), 5)
 
-    # Draw a solid blue point. This is our base
+    # Draw a solid black point. This is our base
     pygame.draw.circle(screen, base.color, (base.x_vertex, base.y_vertex), 10)
 
     for i in range(POPULATION):
         pygame.draw.circle(screen, drone_list[i].color, (drone_list[i].x_vertex, drone_list[i].y_vertex), 5)
 
+    # drone go home
+    if step % 4 == 0:
+        new_x_vertex = base.x_vertex
+        new_y_vertex = base.y_vertex
+        drone_list[i].move(new_x_vertex, new_y_vertex)
+
+    # find tagrets
     for i in range(POPULATION):
-        target_index = int(drone_list[i].chromosome[step])
+        target_index = drone_list[i].chromosome[step]
         new_x_vertex = target_list[target_index].x_vertex
         new_y_vertex = target_list[target_index].y_vertex
         drone_list[i].move(new_x_vertex, new_y_vertex)
         target_list[target_index].taken()
 
-    # drone go home
-    if step % 5 == 0:
-        new_x_vertex = base.x_vertex
-        new_y_vertex = base.y_vertex
-        drone_list[i].move(new_x_vertex, new_y_vertex)
-    step += 1
-
     # new gen
     if step == 15:
+        step_null = True
         gen += 1
         step = 0
         min_ = 10000000
@@ -139,7 +132,7 @@ while running:
         for i in range(POPULATION):
             list_ver.append(drone_list[i].F / sum_)
 
-        roulette = [list_ver[0]]
+        roulette = [0]
         for i in range(1, POPULATION):
             roulette.append(list_ver[i] + roulette[i - 1])
 
@@ -161,8 +154,8 @@ while running:
         # mutation
         for i in range(POPULATION):
             if random.randint(1, 10) % 4 == 0:
-                a_v = random.randint(0,15)
-                b_v = random.randint(0,15)
+                a_v = random.randint(0, 15)
+                b_v = random.randint(0, 15)
                 temp = drone_list[i].chromosome[a_v]
                 drone_list[i].chromosome[a_v] = drone_list[i].chromosome[b_v]
                 drone_list[i].chromosome[b_v] = temp
@@ -172,6 +165,12 @@ while running:
 
         print('Поколение - ' + str(gen))
         print('Лучший маршрут - ' + str(min_))
+
+    step += 1
+
+    if step_null:
+        step_null = False
+        step = 0
 
     # Flip the display
     pygame.display.flip()

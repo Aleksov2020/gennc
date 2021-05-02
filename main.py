@@ -5,7 +5,7 @@ import time
 import pygame
 
 TARGET_NUM = 16
-POPULATION = 50
+POPULATION = 1
 
 
 # define target points
@@ -176,6 +176,6 @@ while running:
     pygame.display.flip()
 
     # Sleep
-    # time.sleep(0.1)
+    time.sleep(0.5)
 # Done! Time to quit.
 pygame.quit()

@@ -1,11 +1,14 @@
 import math
 import random
 import time
-
+import networkx as nx
 import pygame
-
-TARGET_NUM = 16
-POPULATION = 1
+import matplotlib
+TARGET_NUM = 7
+POPULATION = 100
+ver_population = 5
+ver_chromosome = 50
+ver_fuck = 0
 
 
 # define target points
@@ -32,6 +35,16 @@ class Base:
         self.color = (0, 0, 0)
 
 
+class Vert:
+
+    def __init__(self):
+        self.x_vertex = 0
+        self.y_vertex = 0
+
+    def length(self, x):
+        return math.sqrt((self.x_vertex - x.x_vertex) ** 2 + (self.y_vertex - x.y_vertex) ** 2)
+
+
 class Drone:
 
     def __init__(self):
@@ -40,7 +53,7 @@ class Drone:
         self.color = (255, 0, 0)
         self.length_route = 0
         self.F = 0
-        self.chromosome = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        self.chromosome = [0, 1, 2, 3, 4, 5, 6]
         random.shuffle(self.chromosome)
 
     def move(self, x, y):
@@ -50,6 +63,9 @@ class Drone:
             self.length_route += math.sqrt((self.x_vertex - x) ** 2 + (self.y_vertex - y) ** 2)
             self.x_vertex = x
             self.y_vertex = y
+
+    def mutation(self):
+        random.shuffle(self.chromosome)
 
 
 # set map
@@ -65,19 +81,41 @@ for i in range(POPULATION):
     drone = Drone()
     drone_list.append(drone)
 
+true_chromosome = []
+
+
+def Dijkstra(N, S, target_list, base):
+    G = nx.Graph()
+
+    av = Vert()
+    av.x_vertex = base.x_vertex
+    av.y_vertex = base.y_vertex
+    fl_list = []
+    fl_list.append(av)
+    for i in range(TARGET_NUM):
+        av = Vert()
+        av.x_vertex = target_list[i].x_vertex
+        av.y_vertex = target_list[i].y_vertex
+        fl_list.append(av)
+
+    for i in range(TARGET_NUM+1):
+        for j in range(TARGET_NUM+1):
+            G.add_edge(i, j, weight=fl_list[i].length(fl_list[j]))
+    print(nx.dijkstra_path(G, 0, TARGET_NUM))
+
+#Dijkstra(TARGET_NUM+1, 0, target_list, base)
+
 # run process
 pygame.init()
 
 # Set up the drawing window
 screen = pygame.display.set_mode([500, 500])
 
-# Run until the user asks to quit
 running = True
 step = 0
 gen = 0
 step_null = False
 while running:
-
     # Did the user click the window close button?
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -86,21 +124,8 @@ while running:
     # Fill the background with white
     screen.fill((255, 255, 255))
 
-    # Draw a solid green points. This is our targets
-    for i in range(TARGET_NUM):
-        pygame.draw.circle(screen, target_list[i].color, (target_list[i].x_vertex, target_list[i].y_vertex), 5)
-
     # Draw a solid black point. This is our base
     pygame.draw.circle(screen, base.color, (base.x_vertex, base.y_vertex), 10)
-
-    for i in range(POPULATION):
-        pygame.draw.circle(screen, drone_list[i].color, (drone_list[i].x_vertex, drone_list[i].y_vertex), 5)
-
-    # drone go home
-    if step % 4 == 0:
-        new_x_vertex = base.x_vertex
-        new_y_vertex = base.y_vertex
-        drone_list[i].move(new_x_vertex, new_y_vertex)
 
     # find tagrets
     for i in range(POPULATION):
@@ -110,18 +135,67 @@ while running:
         drone_list[i].move(new_x_vertex, new_y_vertex)
         target_list[target_index].taken()
 
+    time.sleep(3)
     # new gen
-    if step == 15:
+    if step == TARGET_NUM-1:
         step_null = True
         gen += 1
         step = 0
         min_ = 10000000
         sum_ = 0
+        min_num = 0
 
         # find min route to print
         for i in range(POPULATION):
             if drone_list[i].length_route < min_:
                 min_ = drone_list[i].length_route
+                min_num = i
+
+        for i in range(TARGET_NUM):
+            target_list[i].reload()
+
+        for i in range(TARGET_NUM):
+            pygame.draw.circle(screen, target_list[i].color, (target_list[i].x_vertex, target_list[i].y_vertex), 5)
+
+        if gen % 1 == 0:
+            pygame.draw.line(screen, (0, 0, 0),
+                             (base.x_vertex,
+                              base.y_vertex),
+                             (target_list[drone_list[min_num].chromosome[0]].x_vertex,
+                              target_list[drone_list[min_num].chromosome[0]].y_vertex),
+                             1)
+            for i in range(TARGET_NUM - 1):
+                if i % 5 == 0 and i != 0:
+                    pygame.draw.line(screen, (0, 0, 0),
+                                     (target_list[drone_list[min_num].chromosome[i]].x_vertex,
+                                      target_list[drone_list[min_num].chromosome[i]].y_vertex),
+                                     (base.x_vertex,
+                                      base.y_vertex),
+                                     1)
+                    pygame.draw.line(screen, (0, 0, 0),
+                                     (base.x_vertex,
+                                      base.y_vertex),
+                                     (target_list[drone_list[min_num].chromosome[i + 1]].x_vertex,
+                                      target_list[drone_list[min_num].chromosome[i + 1]].y_vertex),
+                                     1)
+                else:
+                    pygame.draw.line(screen, (255, 0, 0),
+                                     (target_list[drone_list[min_num].chromosome[i]].x_vertex,
+                                      target_list[drone_list[min_num].chromosome[i]].y_vertex),
+                                     (target_list[drone_list[min_num].chromosome[i + 1]].x_vertex,
+                                      target_list[drone_list[min_num].chromosome[i + 1]].y_vertex),
+                                     1)
+                pygame.display.flip()
+                time.sleep(1)
+
+            pygame.draw.line(screen, (0, 0, 0),
+                             (target_list[drone_list[min_num].chromosome[TARGET_NUM-1]].x_vertex,
+                              target_list[drone_list[min_num].chromosome[TARGET_NUM-1]].y_vertex),
+                             (base.x_vertex,
+                              base.y_vertex),
+                             1)
+            pygame.display.flip()
+            time.sleep(5)
 
         # find sum of result F
         for i in range(POPULATION):
@@ -136,8 +210,9 @@ while running:
         for i in range(1, POPULATION):
             roulette.append(list_ver[i] + roulette[i - 1])
 
-        # childs
         new_drones = []
+
+        # childs with roulette
         for i in range(POPULATION):
             a = Drone()
             child_ = random.random()
@@ -153,29 +228,24 @@ while running:
 
         # mutation
         for i in range(POPULATION):
-            if random.randint(1, 10) % 4 == 0:
-                a_v = random.randint(0, 15)
-                b_v = random.randint(0, 15)
-                temp = drone_list[i].chromosome[a_v]
-                drone_list[i].chromosome[a_v] = drone_list[i].chromosome[b_v]
-                drone_list[i].chromosome[b_v] = temp
+            if random.randint(1, 200) < ver_population:
+                a_v = random.randint(0, TARGET_NUM-1)
+                b_v = random.randint(0, TARGET_NUM-1)
+
+                temp = drone_list[i].chromosome[b_v]
+                drone_list[i].chromosome[b_v] = drone_list[i].chromosome[a_v]
+                drone_list[i].chromosome[a_v] = temp
 
         for i in range(TARGET_NUM):
             target_list[i].reload()
 
-        print('Поколение - ' + str(gen))
-        print('Лучший маршрут - ' + str(min_))
-
+    if (gen % 1 == 0) and (gen != 0) and (step % 15 == 3):
+        print('Поколение = ' + str(gen))
+        print('При ver_chromosome = ' + str(ver_chromosome))
+        print('При ver_population = ' + str(ver_population))
+        print('Лучший результат = ' + str(min_))
     step += 1
 
     if step_null:
         step_null = False
         step = 0
-
-    # Flip the display
-    pygame.display.flip()
-
-    # Sleep
-    time.sleep(0.5)
-# Done! Time to quit.
-pygame.quit()
